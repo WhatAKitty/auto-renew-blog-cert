@@ -9,7 +9,11 @@ import com.qiniu.util.Json;
 import com.qiniu.util.StringMap;
 import com.qiniu.util.StringUtils;
 import com.whatakitty.tools.blog.cert.infa.qiniu.core.cdncert.model.Cert;
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -97,11 +101,14 @@ public class CdnCertManager {
     /**
      * 上传证书
      *
-     * @param cert 证书信息
+     * @param raw 证书信息
      * @return 上传结果
      * @throws QiniuException 证书信息校验不通过，则会抛出异常
      */
-    public CdnCertResult.UploadResult upload(Cert cert) throws QiniuException {
+    public CdnCertResult.UploadResult upload(Cert raw) throws QiniuException {
+        // 修补
+        Cert cert = fixCa(raw);
+
         // check params
         if (StringUtils.isNullOrEmpty(cert.name)) {
             throw new QiniuException(new Exception("name should not be null"));
@@ -127,6 +134,43 @@ public class CdnCertManager {
         StringMap headers = auth.authorizationV2(url, "POST", body, Client.JsonMime);
         Response response = client.post(url, body, headers, Client.JsonMime);
         return response.jsonToObject(CdnCertResult.UploadResult.class);
+    }
+
+    /**
+     * 修正证书
+     *
+     * @param cert 原证书
+     * @return 修正后的证书
+     */
+    public Cert fixCa(Cert cert) throws QiniuException {
+        if (StringUtils.isNullOrEmpty(cert.ca)) {
+            throw new QiniuException(new Exception("ca should not be null"));
+        }
+
+        String START = "-----BEGIN CERTIFICATE-----";
+        String END = "-----END CERTIFICATE-----";
+
+        String ca = cert.ca;
+        String[] caList = org.apache.commons.lang3.StringUtils.substringsBetween(ca, START, END);
+        if (ArrayUtils.isEmpty(caList)) {
+            throw new QiniuException(new Exception("ca cannot recognized correctly"));
+        }
+
+        List<String> caArrayList = Arrays.asList(caList);
+
+        String newca = START + "\r\n" +
+                caArrayList.get(0) + "\r\n" +
+                END + "\r\n" +
+                START + "\r\n" +
+                caArrayList.get(1) + "\r\n" +
+                END + "\r\n";
+        Cert newCert = new Cert();
+        newCert.common_name = cert.common_name;
+        newCert.name = cert.name;
+        newCert.pri = cert.pri;
+        newCert.certid = cert.certid;
+        newCert.ca = newca;
+        return newCert;
     }
 
 }
