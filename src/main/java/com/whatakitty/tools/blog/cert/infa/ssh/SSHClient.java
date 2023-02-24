@@ -36,7 +36,7 @@ public final class SSHClient {
 
     public void connect() {
         try {
-            getSshClient().connect(host);
+            getSshClient().connect(host, port);
         } catch (IOException e) {
             throw new RuntimeException("链接服务器失败", e);
         }

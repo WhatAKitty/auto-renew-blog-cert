@@ -94,6 +94,7 @@ public final class AutoRefresh {
         final Map<String, String> certs = new HashMap<>(4);
         final SSHClient sshClient = sshClientFactory.createClient(
             blogInfo.getHost().getIp(),
+            Integer.valueOf(blogInfo.getHost().getSsh().getPort()),
             ssh.getUsername(),
             ssh.getPassword()
         );
